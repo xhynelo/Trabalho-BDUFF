@@ -1,0 +1,3 @@
+SELECT XZ, BX
+FROM A
+WHERE BX <> 33;

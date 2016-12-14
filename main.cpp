@@ -284,6 +284,31 @@ void ler_arquivo_alg(string nome){
 }
 
 
+bool processa_create_table(istream &in) {
+    return false;
+}
+
+bool processa_insert(istream &in) {
+    return false;
+}
+
+bool processa_select(istream &in) {
+    return false;
+}
+
+bool processa_sql(istream &in) {
+    string comando;
+    in >> comando;
+    if (comando == "CREATE") {
+        return processa_create_table(in);
+    } else if (comando == "INSERT") {
+        return processa_insert(in);
+    } else if (comando == "SELECT") {
+        return processa_select(in);
+    }
+}
+
+
 int main(int argc, char** argv) {
     Valor inteiro("-5",'I');
     Valor texto("'oie'", 'C');
@@ -352,5 +377,11 @@ int main(int argc, char** argv) {
     Z->imprime_ctl(cout);
     delete Z;
     ler_arquivo_alg("consulta1");
+    
+    ifstream arquivo_sql("comando.sql");
+    if(arquivo_sql.is_open()){
+        processa_sql(arquivo_sql);
+        arquivo_sql.close();
+    }
     return (EXIT_SUCCESS);
 }
