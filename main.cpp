@@ -4,7 +4,7 @@
  * and open the template in the editor.
  */
 
-/* 
+/*
  * File:   main.c
  * Author: Marcelo
  *
@@ -34,20 +34,16 @@ struct ordenacao{
     int i;
 };
 
-int busca_atributo(string T, Tabela *A){
-    int i = 0;
+bool S(Tabela* A, string T, string O, Valor &v, Tabela* &Z, string nome){
+    int i = 0, coluna = -1;
     for(; i < A->N; i++){
         if(*A->atributos[i]->nome == T){
-            return i;
+            coluna = i;
+            break;
         }
     }
-    return -1;
-}
-
-bool S(Tabela* A, int coluna, string O, Valor &v, Tabela* &Z, string nome){
-    int i = 0;
     if(coluna == -1){
-        cout << "ERRO: coluna nao existe";
+        cout << "ERRO: coluna " << T << " nao existe";
         return false;
     }
     if(A->atributos[coluna]->tipo != v.tipo && v.valor != NULL){
@@ -62,7 +58,7 @@ bool S(Tabela* A, int coluna, string O, Valor &v, Tabela* &Z, string nome){
     }
     int j = 0;
     Z = new Tabela(A->N, cardinalidade, nome);
-    
+
     for(i = 0; i < A->N; i++){
         Z->atributos[i] = new Atributo(*A->atributos[i]);
     }
@@ -73,12 +69,12 @@ bool S(Tabela* A, int coluna, string O, Valor &v, Tabela* &Z, string nome){
     }
     return true;
 }
-    
+
 bool P(Tabela* A, int n, vector<string> &lista_de_atributos, Tabela* &Z, string nome){
     Z = new Tabela(n, A->M, nome);
     int h = 0;
     for(;h < A->M;h++ ){
-        Z->tuplas[h] = new Tupla("", Z); 
+        Z->tuplas[h] = new Tupla("", Z);
     }
     bool existe = false;
     int i = 0, j, k = 0, y = 0;
@@ -104,7 +100,7 @@ bool P(Tabela* A, int n, vector<string> &lista_de_atributos, Tabela* &Z, string 
     }
     return true;
 }
-    
+
 Tupla* combinar_tuplas(Tupla* A, Tupla* B){
     vector<Valor*> valores;
     int u = 0;
@@ -121,9 +117,34 @@ Tupla* combinar_tuplas(Tupla* A, Tupla* B){
     return resultado;
 }
 
-void J(Tabela* A, Tabela* B, int x, int y, Tabela* &Z, string nome){
-    int i = 0, j = 0;
-    
+void create_table(string nomeArq, Tabela* tab){
+    ofstream out ((nomeArq+".sql").c_str());
+    string linha;
+    char c = 0;
+    if(out.is_open()){
+        on<<"CREATE TABLE"<<" "<<tab.nome<<'\n';
+        int i=0;
+        for(;i<tab.N;i++){
+            on<<tab.atributos[i].nome<<tab.atributos[i].tipo<<tab.atributos[i].notNull<<tab.atributos[i].chave<<tab.atributos[i].ord<<'\n';
+
+        }
+        out.close();
+    }
+
+
+}
+void J(Tabela* A, Tabela* B, string AtriA, string AtriB, Tabela* &Z, string nome){
+    int i = 0, j = 0, x = 0, y = 0;
+    for(; x < A->N; x++){
+        if(*A->atributos[x]->nome == AtriA){
+            break;
+        }
+    }
+    for(; y < A->N; y++){
+        if(*A->atributos[y]->nome == AtriA){
+            break;
+        }
+    }
     vector<Atributo*> atributos;
     string concatA(A->nome), concatB(B->nome);
     if(A->nome == B->nome){
@@ -134,12 +155,12 @@ void J(Tabela* A, Tabela* B, int x, int y, Tabela* &Z, string nome){
     for(; u < A->N; u++){
         Atributo* at = new Atributo(*A->atributos[u]);
         atributos.push_back(at);
-        *(at->nome) = concatA + *(A->atributos[u]->nome); 
+        *(at->nome) = concatA + *(A->atributos[u]->nome);
     }
     for(u=0; u < B->N; u++){
         Atributo* at = new Atributo(*B->atributos[u]);
         atributos.push_back(at);
-        *(at->nome) = concatB + *(B->atributos[u]->nome); 
+        *(at->nome) = concatB + *(B->atributos[u]->nome);
     }
     vector<Tupla*> R(A->tuplas,A->tuplas+A->M);
     vector<Tupla*> S(B->tuplas,B->tuplas+B->M);
@@ -173,7 +194,7 @@ void J(Tabela* A, Tabela* B, int x, int y, Tabela* &Z, string nome){
     copy(atributos.begin(),atributos.end(),Z->atributos);
     copy(tuplas.begin(),tuplas.end(),Z->tuplas);
 }
-        
+
 
 /**/
 
@@ -190,10 +211,9 @@ Tabela* ler_arquivo_ctl(string nome_tab){
         getline(in, linha);
         while(!in.eof()){
             ler_linha(in, linha);
-            if (linha.size()) {
-                A->atributos[i] = new Atributo(linha);
-                i++;
-            }
+            cout << linha.size() << endl;
+            A->atributos[i] = new Atributo(linha);
+            i++;
         }
         in.close();
     }
@@ -204,52 +224,21 @@ Tabela* ler_arquivo_ctl(string nome_tab){
 void ler_arquivo_alg(string nome){
     ifstream in ((nome+".alg").c_str());
     string linha;
-    string ultima_tabela;
     if(in.is_open()){
         while(!in.eof()){
             ler_linha(in, linha);
-            if (!linha.size()) {
-                continue;
-            }
-
             char operacao = linha[0];
             linha = linha.substr(2,linha.length()-3);
+            stringstream os;
             vector<string> operandos;
             separar_operandos(linha, operandos);
-            Tabela* A = ler_arquivo_ctl(operandos[0]);
-            Tabela* Z = NULL;
-            if(A){
-                A->ler_dad();
-            }else{
-                delete A;
-                return;
-            }
-            bool sim = false;
-            if(operacao == 'S'){
-                int coluna = busca_atributo(operandos[1], A);
-                Valor v(operandos[3], A->atributos[coluna]->tipo);
-                sim = S(A, coluna, operandos[2], v, Z, operandos[4]);
-            }else if(operacao == 'P'){
-                vector<string> lista;
-                for(int i = 2; i < operandos.size() - 1; i++) {
-                    lista.push_back(operandos[i]);
-                } 
-                sim = P(A, lista.size(), lista, Z, operandos[operandos.size()-1]);
-            }
-            if(!sim){
-                delete A;
-                delete Z;
-                return;
-            }
-            ultima_tabela = Z->nome;
-            ofstream ctl ((Z->nome+".ctl").c_str());
-            Z->imprime_ctl(ctl);
-            ctl.close();
-            ofstream dad ((Z->nome+".dad").c_str());
-            dad<<*Z;
-            dad.close();
-            delete A;
-            delete Z;
+
+//            char operacao;
+//            char temp;
+//            string parametros;
+//            os>>operacao>>temp>>parametros;
+//            parametros.erase(parametros.length() - 1);
+////            cout<<operacao<<"  "<<nome_tabela;
         }
     }
 }
@@ -261,12 +250,12 @@ int main(int argc, char** argv) {
     Valor Nulo("NULO", 'I');
     cout<<inteiro<<texto<<Nulo;
     cout << endl;
-    
+
     Atributo* atributo = new Atributo("A,I,nn,chv");
     cout<<*atributo;
     delete (atributo);
     cout << endl;
-    
+
     Tabela* tabela = new Tabela(4, 4, "tab");
     tabela->atributos[0] = new Atributo("A,I,nn,chv");
     tabela->atributos[1] = new Atributo("BX,I");
@@ -274,29 +263,29 @@ int main(int argc, char** argv) {
     tabela->atributos[3] = new Atributo("XZ,C");
     tabela->imprime_ctl(cout);
     cout << endl;
-    
+
     Tupla* tupla = new Tupla("50,33,'Banco de Dados',''", tabela);
     cout<<*tupla;
     delete (tupla);
     cout << endl;
-    
+
     tabela->tuplas[0] = new Tupla("50,33,'Banco de Dados',''", tabela);
     tabela->tuplas[1] = new Tupla("777,NULO,'Calculo I',' '", tabela);
     tabela->tuplas[2] = new Tupla("2,43,'Compiladores',NULO", tabela);
     tabela->tuplas[3] = new Tupla("51,1,'Estrutura de Dados','NULO'", tabela);
     cout << *tabela;
     cout << endl;
-    
+
     int res = tabela->valida(cout);
     cout << res << endl;
     Valor v(33);
     Tabela *Z = NULL;
-    bool sel = S(tabela, busca_atributo("BX", tabela), "<>", v, Z, "Z");
+    bool sel = S(tabela, "BX", "<>", v, Z, "Z");
     if (sel) {
         Z->imprime_ctl(cout);
         cout<<*Z;
     }
-    
+
     delete Z;
     Z = NULL;
     vector<string> lista;
@@ -309,7 +298,7 @@ int main(int argc, char** argv) {
     }
     delete Z;
     delete (tabela);
-    
+
     Tabela* A = ler_arquivo_ctl("A");
     A->imprime_ctl(cout);
     bool foi = A->ler_dad();
@@ -317,7 +306,7 @@ int main(int argc, char** argv) {
         cout<<"leu dad";
     }
 //    cout<<*A;
-    J(A, A, busca_atributo("A", A), busca_atributo("A", A), Z, "Z");
+    J(A, A, "A", "A", Z, "Z");
     delete A;
     cout << *Z << endl;
     Z->imprime_ctl(cout);
