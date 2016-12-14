@@ -34,16 +34,20 @@ struct ordenacao{
     int i;
 };
 
-bool S(Tabela* A, string T, string O, Valor &v, Tabela* &Z, string nome){
-    int i = 0, coluna = -1;
+int busca_atributo(string T, Tabela *A){
+    int i = 0;
     for(; i < A->N; i++){
         if(*A->atributos[i]->nome == T){
-            coluna = i;
-            break;
+            return i;
         }
     }
+    return -1;
+}
+
+bool S(Tabela* A, int coluna, string O, Valor &v, Tabela* &Z, string nome){
+    int i = 0;
     if(coluna == -1){
-        cout << "ERRO: coluna " << T << " nao existe";
+        cout << "ERRO: coluna nao existe";
         return false;
     }
     if(A->atributos[coluna]->tipo != v.tipo && v.valor != NULL){
@@ -117,18 +121,9 @@ Tupla* combinar_tuplas(Tupla* A, Tupla* B){
     return resultado;
 }
 
-void J(Tabela* A, Tabela* B, string AtriA, string AtriB, Tabela* &Z, string nome){
-    int i = 0, j = 0, x = 0, y = 0;
-    for(; x < A->N; x++){
-        if(*A->atributos[x]->nome == AtriA){
-            break;
-        }
-    }
-    for(; y < A->N; y++){
-        if(*A->atributos[y]->nome == AtriA){
-            break;
-        }
-    }
+void J(Tabela* A, Tabela* B, int x, int y, Tabela* &Z, string nome){
+    int i = 0, j = 0;
+    
     vector<Atributo*> atributos;
     string concatA(A->nome), concatB(B->nome);
     if(A->nome == B->nome){
@@ -195,9 +190,10 @@ Tabela* ler_arquivo_ctl(string nome_tab){
         getline(in, linha);
         while(!in.eof()){
             ler_linha(in, linha);
-            cout << linha.size() << endl;
-            A->atributos[i] = new Atributo(linha);
-            i++;
+            if (linha.size()) {
+                A->atributos[i] = new Atributo(linha);
+                i++;
+            }
         }
         in.close();
     }
@@ -208,21 +204,52 @@ Tabela* ler_arquivo_ctl(string nome_tab){
 void ler_arquivo_alg(string nome){
     ifstream in ((nome+".alg").c_str());
     string linha;
+    string ultima_tabela;
     if(in.is_open()){
         while(!in.eof()){
             ler_linha(in, linha);
+            if (!linha.size()) {
+                continue;
+            }
+
             char operacao = linha[0];
             linha = linha.substr(2,linha.length()-3);
-            stringstream os;
             vector<string> operandos;
             separar_operandos(linha, operandos);
-            
-//            char operacao;
-//            char temp;
-//            string parametros;
-//            os>>operacao>>temp>>parametros;
-//            parametros.erase(parametros.length() - 1);
-////            cout<<operacao<<"  "<<nome_tabela;
+            Tabela* A = ler_arquivo_ctl(operandos[0]);
+            Tabela* Z = NULL;
+            if(A){
+                A->ler_dad();
+            }else{
+                delete A;
+                return;
+            }
+            bool sim = false;
+            if(operacao == 'S'){
+                int coluna = busca_atributo(operandos[1], A);
+                Valor v(operandos[3], A->atributos[coluna]->tipo);
+                sim = S(A, coluna, operandos[2], v, Z, operandos[4]);
+            }else if(operacao == 'P'){
+                vector<string> lista;
+                for(int i = 2; i < operandos.size() - 1; i++) {
+                    lista.push_back(operandos[i]);
+                } 
+                sim = P(A, lista.size(), lista, Z, operandos[operandos.size()-1]);
+            }
+            if(!sim){
+                delete A;
+                delete Z;
+                return;
+            }
+            ultima_tabela = Z->nome;
+            ofstream ctl ((Z->nome+".ctl").c_str());
+            Z->imprime_ctl(ctl);
+            ctl.close();
+            ofstream dad ((Z->nome+".dad").c_str());
+            dad<<*Z;
+            dad.close();
+            delete A;
+            delete Z;
         }
     }
 }
@@ -264,7 +291,7 @@ int main(int argc, char** argv) {
     cout << res << endl;
     Valor v(33);
     Tabela *Z = NULL;
-    bool sel = S(tabela, "BX", "<>", v, Z, "Z");
+    bool sel = S(tabela, busca_atributo("BX", tabela), "<>", v, Z, "Z");
     if (sel) {
         Z->imprime_ctl(cout);
         cout<<*Z;
@@ -290,7 +317,7 @@ int main(int argc, char** argv) {
         cout<<"leu dad";
     }
 //    cout<<*A;
-    J(A, A, "A", "A", Z, "Z");
+    J(A, A, busca_atributo("A", A), busca_atributo("A", A), Z, "Z");
     delete A;
     cout << *Z << endl;
     Z->imprime_ctl(cout);

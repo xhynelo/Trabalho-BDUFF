@@ -182,8 +182,10 @@ bool Tabela::ler_dad(){
     if(in.is_open()){
         while(!in.eof()){
             ler_linha(in, linha);
-            tuplas[i] = new Tupla(linha, this);
-            i++;
+            if (linha.size()) {
+                tuplas[i] = new Tupla(linha, this);
+                i++;
+            }
         }
         in.close();
     }
@@ -272,8 +274,14 @@ bool Tabela::valida(ostream& out){
 
 void ler_linha(std::istream &in, std::string &linha){
     getline(in, linha);
+    if (!linha.size()) {
+        return;
+    }
     if (*linha.rbegin() == '\n'){
         linha.erase(linha.length() - 1);
+    }
+    if (!linha.size()) {
+        return;
     }
     if (*linha.rbegin() == '\r'){
         linha.erase(linha.length() - 1);
