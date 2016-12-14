@@ -50,27 +50,26 @@ Tupla* combinar_tuplas(Tupla* A, Tupla* B){
     return resultado;
 }
 
-std::string lower(const std::string& in) {
-  std::string out;
-
-  std::transform(in.begin(), in.end(), std::back_inserter(out), ::tolower);
+string lower(const string& in) {
+  string out;
+  transform(in.begin(), in.end(), back_inserter(out), ::tolower);
   return out;
 }
 
 // Apaga espacos da esquerda
-static inline void ltrim(std::string &s) {
-    s.erase(s.begin(), std::find_if(s.begin(), s.end(),
-            std::not1(std::ptr_fun<int, int>(std::isspace))));
+static inline void ltrim(string &s) {
+    s.erase(s.begin(), find_if(s.begin(), s.end(),
+            not1(ptr_fun<int, int>(isspace))));
 }
 
 // Apaga espacos da direita
-static inline void rtrim(std::string &s) {
-    s.erase(std::find_if(s.rbegin(), s.rend(),
-            std::not1(std::ptr_fun<int, int>(std::isspace))).base(), s.end());
+static inline void rtrim(string &s) {
+    s.erase(find_if(s.rbegin(), s.rend(),
+            not1(ptr_fun<int, int>(isspace))).base(), s.end());
 }
 
 // Apaga espacos de borda
-static inline void trim(std::string &s) {
+static inline void trim(string &s) {
     ltrim(s);
     rtrim(s);
 }
@@ -352,13 +351,13 @@ bool processa_create_table(istream &in, string nome_arq) {
         A->atributos[i] = new Atributo(partes[0], lower(partes[1]));
         for (int j = 2; j < partes.size(); j++) {
             trim(partes[j]);
-            if (partes[j] == "NN") {
+            if (lower(partes[j]) == "nn") {
                 A->atributos[i]->notNull = 1;
             }
-            if (partes[j] == "KEY") {
+            if (lower(partes[j]) == "key") {
                 A->atributos[i]->chave = 1;
             }
-            if (partes[j] == "ORD") {
+            if (lower(partes[j]) == "ord") {
                 A->atributos[i]->ord = 1;
             }
         }
@@ -384,23 +383,22 @@ bool processa_insert(istream &in, string nome_arq) {
     istreambuf_iterator<char> eos;
     string resto(istreambuf_iterator<char>(in), eos); // le todo texto restante
     trim(resto);
-    cout << resto << endl;
     vector<string> paren;
     separar_operandos(resto, paren, '(');
     if (paren.size() < 2) {
         cout << "ERRO: Sintaxe invalida" << endl;
         return false;
     }
-    resto = "";
+    string resto2 = "";
     for (int i = 1; i < paren.size(); i++) {
         trim(paren[i]);
-        resto += paren[i];
+        resto2 += paren[i];
     }
-    if (*resto.rbegin() == ';'){
-        resto.erase(resto.length() - 1);
+    if (*resto2.rbegin() == ';'){
+        resto2.erase(resto2.length() - 1);
     }
-    if (*resto.rbegin() == ')'){
-        resto.erase(resto.length() - 1);
+    if (*resto2.rbegin() == ')'){
+        resto2.erase(resto2.length() - 1);
     }
     Tabela *A = ler_arquivo_ctl(tabela);
     if (!A) {
@@ -411,13 +409,27 @@ bool processa_insert(istream &in, string nome_arq) {
     A->ler_dad();
     Tupla ** tuplas = new Tupla*[A->M + 1];
     memcpy(tuplas, A->tuplas, A->M*sizeof(Tupla *));
-    tuplas[A->M] = new Tupla(resto, A);
+    tuplas[A->M] = new Tupla(resto2, A);
+
     A->M += 1;
     delete [] A->tuplas;
     A->tuplas = tuplas;
+
     
+    if (tuplas[A->M - 1]->N != A->N) {
+        cout << "ERRO: quantidade errada de valores na insercao" << endl;
+        delete A;
+        return false;
+    }
     int i = 0;
-    for(;i < A->N; i++) {
+    for(; i < A->N; i++) {
+        if (A->atributos[i]->tipo != A->tuplas[A->M - 1]->atributos[i]->tipo) {
+            cout << "ERRO: tipo do atributo " << i << " invalido" << endl;
+            delete A;
+            return false;
+        }
+    }
+    for(i = 0;i < A->N; i++) {
         if (A->atributos[i]->ord) {
             break;
         }
@@ -689,75 +701,75 @@ bool processa_sql(istream &in, string nome_arq) {
 
 
 int main(int argc, char** argv) {
-    /*
-    Valor inteiro("-5",'I');
-    Valor texto("'oie'", 'C');
-    Valor Nulo("NULO", 'I');
-    cout<<inteiro<<texto<<Nulo;
-    cout << endl;
-    
-    Atributo* atributo = new Atributo("A,I,nn,chv");
-    cout<<*atributo;
-    delete (atributo);
-    cout << endl;
-    
-    Tabela* tabela = new Tabela(4, 4, "tab");
-    tabela->atributos[0] = new Atributo("A,I,nn,chv");
-    tabela->atributos[1] = new Atributo("BX,I");
-    tabela->atributos[2] = new Atributo("CYZ,C,nn,ord");
-    tabela->atributos[3] = new Atributo("XZ,C");
-    tabela->imprime_ctl(cout);
-    cout << endl;
-    
-    Tupla* tupla = new Tupla("50,33,'Banco de Dados',''", tabela);
-    cout<<*tupla;
-    delete (tupla);
-    cout << endl;
-    
-    tabela->tuplas[0] = new Tupla("50,33,'Banco de Dados',''", tabela);
-    tabela->tuplas[1] = new Tupla("777,NULO,'Calculo I',' '", tabela);
-    tabela->tuplas[2] = new Tupla("2,43,'Compiladores',NULO", tabela);
-    tabela->tuplas[3] = new Tupla("51,1,'Estrutura de Dados','NULO'", tabela);
-    cout << *tabela;
-    cout << endl;
-    
-    int res = tabela->valida(cout);
-    cout << res << endl;
-    Valor v(33);
-    Tabela *Z = NULL;
-    bool sel = S(tabela, busca_atributo("BX", tabela), "<>", v, Z, "Z");
-    if (sel) {
-        Z->imprime_ctl(cout);
-        cout<<*Z;
-    }
-    
-    delete Z;
-    Z = NULL;
-    vector<string> lista;
-    lista.push_back("XZ");
-    lista.push_back("BX");
-    bool pro = P(tabela, 2, lista, Z, "Z");
-    if (pro){
-        Z->imprime_ctl(cout);
-        cout<<*Z;
-    }
-    delete Z;
-    delete (tabela);
-    
-    Tabela* A = ler_arquivo_ctl("A");
-    A->imprime_ctl(cout);
-    bool foi = A->ler_dad();
-    if(foi){
-        cout<<"leu dad";
-    }
-//    cout<<*A;
-    J(A, A, busca_atributo("A", A), busca_atributo("A", A), Z, "Z");
-    delete A;
-    cout << *Z << endl;
-    Z->imprime_ctl(cout);
-    delete Z;
-    ler_arquivo_alg("consulta1");
-    */
+//    /*
+//    Valor inteiro("-5",'I');
+//    Valor texto("'oie'", 'C');
+//    Valor Nulo("NULO", 'I');
+//    cout<<inteiro<<texto<<Nulo;
+//    cout << endl;
+//    
+//    Atributo* atributo = new Atributo("A,I,nn,chv");
+//    cout<<*atributo;
+//    delete (atributo);
+//    cout << endl;
+//    
+//    Tabela* tabela = new Tabela(4, 4, "tab");
+//    tabela->atributos[0] = new Atributo("A,I,nn,chv");
+//    tabela->atributos[1] = new Atributo("BX,I");
+//    tabela->atributos[2] = new Atributo("CYZ,C,nn,ord");
+//    tabela->atributos[3] = new Atributo("XZ,C");
+//    tabela->imprime_ctl(cout);
+//    cout << endl;
+//    
+//    Tupla* tupla = new Tupla("50,33,'Banco de Dados',''", tabela);
+//    cout<<*tupla;
+//    delete (tupla);
+//    cout << endl;
+//    
+//    tabela->tuplas[0] = new Tupla("50,33,'Banco de Dados',''", tabela);
+//    tabela->tuplas[1] = new Tupla("777,NULO,'Calculo I',' '", tabela);
+//    tabela->tuplas[2] = new Tupla("2,43,'Compiladores',NULO", tabela);
+//    tabela->tuplas[3] = new Tupla("51,1,'Estrutura de Dados','NULO'", tabela);
+//    cout << *tabela;
+//    cout << endl;
+//    
+//    int res = tabela->valida(cout);
+//    cout << res << endl;
+//    Valor v(33);
+//    Tabela *Z = NULL;
+//    bool sel = S(tabela, busca_atributo("BX", tabela), "<>", v, Z, "Z");
+//    if (sel) {
+//        Z->imprime_ctl(cout);
+//        cout<<*Z;
+//    }
+//    
+//    delete Z;
+//    Z = NULL;
+//    vector<string> lista;
+//    lista.push_back("XZ");
+//    lista.push_back("BX");
+//    bool pro = P(tabela, 2, lista, Z, "Z");
+//    if (pro){
+//        Z->imprime_ctl(cout);
+//        cout<<*Z;
+//    }
+//    delete Z;
+//    delete (tabela);
+//    
+//    Tabela* A = ler_arquivo_ctl("A");
+//    A->imprime_ctl(cout);
+//    bool foi = A->ler_dad();
+//    if(foi){
+//        cout<<"leu dad";
+//    }
+////    cout<<*A;
+//    J(A, A, busca_atributo("A", A), busca_atributo("A", A), Z, "Z");
+//    delete A;
+//    cout << *Z << endl;
+//    Z->imprime_ctl(cout);
+//    delete Z;
+//    ler_arquivo_alg("consulta1");
+//    */
     string arquivo;
     if (argc > 1) {
         arquivo = argv[1];

@@ -1,3 +1,3 @@
 INSERT
 INTO TD
-VALUES(2,1,'a');
+VALUES(1,10,'a');

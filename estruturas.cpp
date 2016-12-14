@@ -29,16 +29,20 @@ std::ostream& operator<<(std::ostream& out, const Valor& valor){
 }
 
 Tupla::Tupla(string texto, Tabela* tab){
-    atributos = new Valor*[tab->N];
-    int inicial = 0, i = 0, quant = 0;
-    for (; i < tab->N; i++){
-        atributos[i] = NULL;
-    }
-    N = tab->N;
-    i = 0;
+    
     vector<string> valores;
     separar_operandos(texto, valores);
-    for (i = 0; i < valores.size(); i++){
+    
+    N = valores.size();
+    if (N == 0) {
+        N = tab->N;
+    }
+    atributos = new Valor*[N];
+    int i = 0;
+    for (; i < N; i++){
+        atributos[i] = NULL;
+    }
+    for (i = 0; i < valores.size() && i < tab->N; i++){
         atributos[i] = new Valor(valores[i], tab->atributos[i]->tipo);
     }
 }
@@ -115,7 +119,7 @@ Atributo::Atributo(string texto){
 Atributo::Atributo(std::string n, std::string tp) {
     nome = new string(n);
     if (tp == "string") {
-        tipo = 'c';
+        tipo = 'C';
     } else if (tp == "integer") {
         tipo = 'I';
     }
