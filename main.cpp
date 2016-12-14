@@ -121,9 +121,12 @@ Tupla* combinar_tuplas(Tupla* A, Tupla* B){
     return resultado;
 }
 
-void J(Tabela* A, Tabela* B, int x, int y, Tabela* &Z, string nome){
+bool J(Tabela* A, Tabela* B, int x, int y, Tabela* &Z, string nome){
     int i = 0, j = 0;
-    
+    if(x == -1 || y == -1){
+        cout << "ERRO: coluna nao existe";
+        return false;
+    }
     vector<Atributo*> atributos;
     string concatA(A->nome), concatB(B->nome);
     if(A->nome == B->nome){
@@ -133,11 +136,15 @@ void J(Tabela* A, Tabela* B, int x, int y, Tabela* &Z, string nome){
     int u = 0;
     for(; u < A->N; u++){
         Atributo* at = new Atributo(*A->atributos[u]);
+        at->ord = false;
+        at->chave = false;
         atributos.push_back(at);
         *(at->nome) = concatA + *(A->atributos[u]->nome); 
     }
     for(u=0; u < B->N; u++){
         Atributo* at = new Atributo(*B->atributos[u]);
+        at->ord = false;
+        at->chave = false;
         atributos.push_back(at);
         *(at->nome) = concatB + *(B->atributos[u]->nome); 
     }
@@ -149,19 +156,20 @@ void J(Tabela* A, Tabela* B, int x, int y, Tabela* &Z, string nome){
     sort(S.begin(), S.end(), ordS);
     vector<Tupla*> tuplas;
     while(i<R.size() && j<S.size()){
-        if(R[i]->atributos[x] > S[j]->atributos[y]){
+        if(*R[i]->atributos[x] > *S[j]->atributos[y]){
             j++;
-        }else if (R[i]->atributos[x] < S[j]->atributos[y]){
+        }else if (*R[i]->atributos[x] < *S[j]->atributos[y]){
             i++;
         }else{
             tuplas.push_back(combinar_tuplas(R[i], S[j]));
+            
             int l = j+1;
-            while(l < S.size() && R[i]->atributos[x] == S[l]->atributos[y]){
+            while(l < S.size() && *R[i]->atributos[x] == *S[l]->atributos[y]){
                 tuplas.push_back(combinar_tuplas(R[i], S[l]));
                 l++;
             }
             int k = i+1;
-            while(k < S.size() && R[k]->atributos[x] == S[j]->atributos[y]){
+            while(k < S.size() && *R[k]->atributos[x] == *S[j]->atributos[y]){
                 tuplas.push_back(combinar_tuplas(R[k], S[j]));
                 k++;
             }
@@ -172,6 +180,7 @@ void J(Tabela* A, Tabela* B, int x, int y, Tabela* &Z, string nome){
     Z = new Tabela(atributos.size(), tuplas.size(), nome);
     copy(atributos.begin(),atributos.end(),Z->atributos);
     copy(tuplas.begin(),tuplas.end(),Z->tuplas);
+    return true;
 }
         
 
@@ -186,7 +195,6 @@ Tabela* ler_arquivo_ctl(string nome_tab){
     if(in.is_open()){
         in>>N>>c>>M;
         A = new Tabela(N, M, nome_tab);
-        cout<<N<<"  "<<c<<"  "<<M;
         getline(in, linha);
         while(!in.eof()){
             ler_linha(in, linha);
@@ -235,6 +243,20 @@ void ler_arquivo_alg(string nome){
                     lista.push_back(operandos[i]);
                 } 
                 sim = P(A, lista.size(), lista, Z, operandos[operandos.size()-1]);
+            }else if(operacao == 'J'){
+                Tabela* B = ler_arquivo_ctl(operandos[1]);
+                if(B){
+                    B->ler_dad();
+                } else {
+                    delete A;
+                    delete B;
+                    delete Z;
+                    return;
+                }
+                int x = busca_atributo(operandos[2], A);
+                int y = busca_atributo(operandos[3], B);
+                sim = J(A, B, x, y, Z, operandos[operandos.size()-1]);
+                delete B;
             }
             if(!sim){
                 delete A;
@@ -251,6 +273,13 @@ void ler_arquivo_alg(string nome){
             delete A;
             delete Z;
         }
+        in.close();
+        Tabela* R = ler_arquivo_ctl(ultima_tabela);
+        if (R){
+            R->ler_dad();
+            cout << *R << endl;
+        }
+        delete R;
     }
 }
 
@@ -322,6 +351,6 @@ int main(int argc, char** argv) {
     cout << *Z << endl;
     Z->imprime_ctl(cout);
     delete Z;
-    ler_arquivo_alg("consulta");
+    ler_arquivo_alg("consulta1");
     return (EXIT_SUCCESS);
 }

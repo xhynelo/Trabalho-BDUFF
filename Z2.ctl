@@ -1,0 +1,9 @@
+8,6
+AA,I,nn
+ABX,I
+ACYZ,C,nn
+AXZ,C
+BB,I,nn
+BDD,C,nn
+BFT,I
+BKAD,C,nn
