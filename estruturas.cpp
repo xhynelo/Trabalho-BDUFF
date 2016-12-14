@@ -112,6 +112,18 @@ Atributo::Atributo(string texto){
         }
     }
 }
+Atributo::Atributo(std::string n, std::string tp) {
+    nome = new string(n);
+    if (tp == "string") {
+        tipo = 'c';
+    } else if (tp == "integer") {
+        tipo = 'I';
+    }
+    notNull = 0;
+    chave = 0;
+    ord = 0;
+}
+
 Atributo::Atributo(const Atributo &atri){
     nome = new string(*(atri.nome));
     tipo = atri.tipo;
@@ -289,12 +301,12 @@ void ler_linha(std::istream &in, std::string &linha){
     
 }
 
-void separar_operandos(string linha, vector<string> &operandos){
+void separar_operandos(string linha, vector<string> &operandos, char delim){
     stringstream os;
     os.str(linha);
     while(getline(os, linha,'\'')){
         stringstream ss(linha);
-        while(getline(ss, linha, ',')){
+        while(getline(ss, linha, delim)){
             if (linha.size()) {
                 operandos.push_back(linha);
             }

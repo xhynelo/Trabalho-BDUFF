@@ -34,10 +34,52 @@ struct ordenacao{
     int i;
 };
 
+Tupla* combinar_tuplas(Tupla* A, Tupla* B){
+    vector<Valor*> valores;
+    int u = 0;
+    for(u=0;u<A->N;u++){
+        Valor* v = new Valor(*A->atributos[u]);
+        valores.push_back(v);
+    }
+    for(u=0;u<B->N;u++){
+        Valor* v = new Valor(*B->atributos[u]);
+        valores.push_back(v);
+    }
+    Tupla* resultado= new Tupla(A->N+B->N);
+    copy(valores.begin(),valores.end(),resultado->atributos);
+    return resultado;
+}
+
+std::string lower(const std::string& in) {
+  std::string out;
+
+  std::transform(in.begin(), in.end(), std::back_inserter(out), ::tolower);
+  return out;
+}
+
+// Apaga espacos da esquerda
+static inline void ltrim(std::string &s) {
+    s.erase(s.begin(), std::find_if(s.begin(), s.end(),
+            std::not1(std::ptr_fun<int, int>(std::isspace))));
+}
+
+// Apaga espacos da direita
+static inline void rtrim(std::string &s) {
+    s.erase(std::find_if(s.rbegin(), s.rend(),
+            std::not1(std::ptr_fun<int, int>(std::isspace))).base(), s.end());
+}
+
+// Apaga espacos de borda
+static inline void trim(std::string &s) {
+    ltrim(s);
+    rtrim(s);
+}
+
+
 int busca_atributo(string T, Tabela *A){
     int i = 0;
     for(; i < A->N; i++){
-        if(*A->atributos[i]->nome == T){
+        if(lower(*A->atributos[i]->nome) == lower(T)){
             return i;
         }
     }
@@ -85,7 +127,7 @@ bool P(Tabela* A, int n, vector<string> &lista_de_atributos, Tabela* &Z, string 
     for(; i < lista_de_atributos.size(); i++){
         existe = false;
         for(j = 0; j < A->N;j++){
-            if(lista_de_atributos[i] == *A->atributos[j]->nome){
+            if(lower(lista_de_atributos[i]) == lower(*A->atributos[j]->nome)){
                 existe = true;
                 Z->atributos[k] = new Atributo(*A->atributos[j]);
                 for(y = 0; y < A->M; y++){
@@ -105,22 +147,6 @@ bool P(Tabela* A, int n, vector<string> &lista_de_atributos, Tabela* &Z, string 
     return true;
 }
     
-Tupla* combinar_tuplas(Tupla* A, Tupla* B){
-    vector<Valor*> valores;
-    int u = 0;
-    for(u=0;u<A->N;u++){
-        Valor* v = new Valor(*A->atributos[u]);
-        valores.push_back(v);
-    }
-    for(u=0;u<B->N;u++){
-        Valor* v = new Valor(*B->atributos[u]);
-        valores.push_back(v);
-    }
-    Tupla* resultado= new Tupla(A->N+B->N);
-    copy(valores.begin(),valores.end(),resultado->atributos);
-    return resultado;
-}
-
 bool J(Tabela* A, Tabela* B, int x, int y, Tabela* &Z, string nome){
     int i = 0, j = 0;
     if(x == -1 || y == -1){
@@ -183,7 +209,6 @@ bool J(Tabela* A, Tabela* B, int x, int y, Tabela* &Z, string nome){
     return true;
 }
         
-
 /**/
 
 Tabela* ler_arquivo_ctl(string nome_tab){
@@ -284,32 +309,387 @@ void ler_arquivo_alg(string nome){
 }
 
 
-bool processa_create_table(istream &in) {
-    return false;
+bool processa_create_table(istream &in, string nome_arq) {
+    string atual, tabela;
+    in >> atual;
+    istreambuf_iterator<char> eos;
+    string resto(istreambuf_iterator<char>(in), eos); // le todo texto restante
+    trim(resto);
+    vector<string> paren;
+    separar_operandos(resto, paren, '(');
+    if (paren.size() != 2) {
+        cout << "ERRO: Sintaxe invalida" << endl;
+        return false;
+    }
+    trim(paren[0]);
+    tabela = paren[0];
+    if (*paren[1].rbegin() == ';'){
+        paren[1].erase(paren[1].length() - 1);
+    }
+    if (*paren[1].rbegin() == ')'){
+        paren[1].erase(paren[1].length() - 1);
+    }
+    vector<string> atributos;
+    separar_operandos(paren[1], atributos, ',');
+    
+    
+    Tabela *A = new Tabela(atributos.size(), 0, tabela);
+    for (int i = 0; i < atributos.size(); i++) {
+        vector<string> partes;
+        separar_operandos(atributos[i], partes, ' ');
+        if (partes.size() < 2) {
+            cout << "ERRO: Sintaxe invalida" << endl;
+            delete A;
+            return false;
+        }
+        trim(partes[0]);
+        trim(partes[1]);
+        if (lower(partes[1]) != "string" && lower(partes[1]) != "integer") {
+            cout << "ERRO: Tipo " << partes[1] << " invalido" << endl;
+            delete A;
+            return false;
+        }
+        A->atributos[i] = new Atributo(partes[0], lower(partes[1]));
+        for (int j = 2; j < partes.size(); j++) {
+            trim(partes[j]);
+            if (partes[j] == "NN") {
+                A->atributos[i]->notNull = 1;
+            }
+            if (partes[j] == "KEY") {
+                A->atributos[i]->chave = 1;
+            }
+            if (partes[j] == "ORD") {
+                A->atributos[i]->ord = 1;
+            }
+        }
+    }
+    int r = A->valida(cout);
+    if (r) {
+        ofstream ctl ((A->nome+".ctl").c_str());
+        A->imprime_ctl(ctl);
+        ctl.close();
+        ofstream dad ((A->nome+".dad").c_str());
+        dad<<*A;
+        dad.close();
+        cout<<"Tabela " << A->nome << " criada!" << endl;
+    }
+    
+    delete A;
+    return true;
 }
 
-bool processa_insert(istream &in) {
-    return false;
+bool processa_insert(istream &in, string nome_arq) {
+    string atual, tabela;
+    in >> atual >> tabela;
+    istreambuf_iterator<char> eos;
+    string resto(istreambuf_iterator<char>(in), eos); // le todo texto restante
+    trim(resto);
+    cout << resto << endl;
+    vector<string> paren;
+    separar_operandos(resto, paren, '(');
+    if (paren.size() < 2) {
+        cout << "ERRO: Sintaxe invalida" << endl;
+        return false;
+    }
+    resto = "";
+    for (int i = 1; i < paren.size(); i++) {
+        trim(paren[i]);
+        resto += paren[i];
+    }
+    if (*resto.rbegin() == ';'){
+        resto.erase(resto.length() - 1);
+    }
+    if (*resto.rbegin() == ')'){
+        resto.erase(resto.length() - 1);
+    }
+    Tabela *A = ler_arquivo_ctl(tabela);
+    if (!A) {
+        cout << "ERRO: Tabela " << A->nome << " nao existe" << endl;
+        delete A;
+        return false;
+    }
+    A->ler_dad();
+    Tupla ** tuplas = new Tupla*[A->M + 1];
+    memcpy(tuplas, A->tuplas, A->M*sizeof(Tupla *));
+    tuplas[A->M] = new Tupla(resto, A);
+    A->M += 1;
+    delete [] A->tuplas;
+    A->tuplas = tuplas;
+    
+    int i = 0;
+    for(;i < A->N; i++) {
+        if (A->atributos[i]->ord) {
+            break;
+        }
+    }
+    if (i != A->N) {
+        ordenacao ordi(i);
+        sort(A->tuplas, A->tuplas + A->M, ordi);
+    }
+        
+    ofstream ctl ((A->nome+".ctl").c_str());
+    A->imprime_ctl(ctl);
+    ctl.close();
+    ofstream dad ((A->nome+".dad").c_str());
+    dad<<*A;
+    dad.close();
+    cout<<"Tupla inserida em " << A->nome << "!" << endl;
+    
+    delete A;
+    return true;
 }
 
-bool processa_select(istream &in) {
-    return false;
+int desclassifica(string& atributo, Tabela *A, string concat) {
+    vector<string> classificado;
+    separar_operandos(atributo, classificado, '.');
+    if (classificado.size() > 1) {
+        if (classificado[0] != A->nome) {
+            return -1;
+        }
+    }
+    string atr = classificado[classificado.size() - 1];
+    for (int i = 0; i < A->N; i++) {
+        if (lower(atr) == lower(*A->atributos[i]->nome)) {
+            atributo = concat + atr;
+            return 1;
+        }
+    }
+    return -2;
 }
 
-bool processa_sql(istream &in) {
+bool processa_select(istream &in, string nome_arq) {
+    // Parseia
+    string atual, calculado, relacao_A;
+    in >> atual;
+    while(lower(atual)!="from"){
+        calculado+=atual;
+        in >> atual;
+    }
+    vector<string> atributos;
+    separar_operandos(calculado, atributos);
+    in >> relacao_A;
+    if (*relacao_A.rbegin() == ';'){
+        relacao_A.erase(relacao_A.length() - 1);
+    }
+    while(!in.eof() && lower(atual)!="where" && lower(atual)!="join"){
+        in >> atual;
+        if (lower(atual)!="where" && lower(atual)!="join" && atual != ";") {
+            cout << "ERRO: Sintaxe. Esperava WHERE, JOIN ou ;";
+            cout << " mas encontrou " << atual << endl;
+            return false;
+        }
+    }
+    calculado = "";
+    string relacao_B;
+    vector<string> cond_JOIN;
+    if(lower(atual) == "join"){
+        in >> relacao_B >> atual >> atual;
+        while(!in.eof() && lower(atual)!="where"){
+            calculado+=atual;
+            in >> atual;
+        }
+        if (in.eof()) {
+            calculado += atual;
+        }
+        if (*calculado.rbegin() == ';'){
+            calculado.erase(calculado.length() - 1);
+        }
+        separar_operandos(calculado, cond_JOIN, '=');
+        if (cond_JOIN.size() < 2) {
+            cout << "ERRO: condicao de juncao invalida" << endl;
+            return false;
+        }
+    }
+    string T;
+    string op;
+    string v;
+    if(lower(atual) == "where"){
+        calculado = "";
+        in >> atual;
+        while(!in.eof()){
+             calculado+=atual;
+             in >> atual;
+        }
+        calculado += atual;
+        if (*calculado.rbegin() == ';'){
+            calculado.erase(calculado.length() - 1);
+        }
+        
+        for (int i=0; i<calculado.size(); i++) {
+            char c = calculado[i];
+            if (c == '=' || c == '<' || c == '>') {
+                T = calculado.substr(0, i);
+                op += c;
+                char c2 = calculado[i + 1];
+                i++;
+                if (c2 == '=' || c2 == '>') {
+                    op += c2;
+                    i++;
+                }
+                v = calculado.substr(i, calculado.size() - i);
+                break;
+            }
+        }
+    }
+
+    // valida e transforma em alg
+    
+    string selecao;
+    string projecao;
+    string juncao;
+    
+    Tabela* A = ler_arquivo_ctl(relacao_A);
+    Tabela* B;
+    if (!A) {
+        cout << "ERRO: Tabela " << relacao_A << " nao existe" << endl;
+        delete A;
+        delete B;
+        return false;
+    }
+    atual = relacao_A;
+    if (relacao_B.size() == 0) {
+        for (int i = 0; i < atributos.size(); i++) {
+            int d = desclassifica(atributos[i], A, "");
+            if (d < 0) {
+                cout << "ERRO: Atributo " << atributos[i] << " nao pertence a " << relacao_A << endl;
+                delete A;
+                delete B;
+                return false;
+            }
+        }
+        if (T.size()) {
+            int dt = desclassifica(T, A, "");
+            if (dt < 0) {
+                cout << "ERRO: Atributo " << T << " nao pertence a " << relacao_A << endl;
+                delete A;
+                delete B;
+                return false;
+            }
+
+            selecao = "S(" + relacao_A + "," + T + "," + op + "," + v + "," + atual + "SELECT)";
+            atual = atual + "SELECT";
+        }
+        juncao = "";
+    } else {
+        B = ler_arquivo_ctl(relacao_B);
+        if (!B) {
+            cout << "ERRO: Tabela " << relacao_B << " nao existe" << endl;
+            delete A;
+            delete B;
+            return false;
+        }
+        string concatA = A->nome;
+        string concatB = B->nome;
+        if (A->nome == B->nome) {
+            concatA += "1";
+            concatB += "2";
+        }
+        for (int i = 0; i < atributos.size(); i++) {
+            string testaA = atributos[i];
+            string testaB = atributos[i];
+            int da = desclassifica(testaA, A, concatA);
+            int db = desclassifica(testaB, B, concatB);
+            
+            if (da < 0 && db < 0) {
+                cout << "ERRO: Atributo " << atributos[i] << " nao pertence a ";
+                cout << relacao_A << " nem " << relacao_B << endl;
+                delete A;
+                delete B;
+                return false;
+            } else if (da >= 0 && db >= 0) {
+                cout << "ERRO: Atributo ambiguo " << atributos[i] << " pertence a ";
+                cout << relacao_A << " e " << relacao_B << endl;
+                delete A;
+                delete B;
+                return false;
+            } else if (da >= 0) {
+                atributos[i] = testaA;
+            } else {
+                atributos[i] = testaB;
+            }
+        }
+        int dca = desclassifica(cond_JOIN[0], A, "");
+        if (dca < 0){
+            cout << "ERRO: Atributo " << cond_JOIN[0] << " nao pertence a " << relacao_A << endl;
+            delete A;
+            delete B;
+            return false; 
+        }
+        int dcb = desclassifica(cond_JOIN[1], B, "");
+        if (dcb < 0){
+            cout << "ERRO: Atributo " << cond_JOIN[1] << " nao pertence a " << relacao_B << endl;
+            delete A;
+            delete B;
+            return false; 
+        }
+        
+        atual = relacao_A + "JOIN" + relacao_B;
+        juncao = "J(" + relacao_A + "," + relacao_B + "," + cond_JOIN[0] + "," + cond_JOIN[1] + "," + atual + ")";
+                
+        if (T.size()) {
+            string testaA = T;
+            string testaB = T;
+            int da = desclassifica(testaA, A, concatA);
+            int db = desclassifica(testaB, B, concatB);
+            
+            if (da < 0 && db < 0) {
+                cout << "ERRO: Atributo " << T << " nao pertence a ";
+                cout << relacao_A << " nem " << relacao_B << endl;
+                delete A;
+                delete B;
+                return false;
+            } else if (da >= 0 && db >= 0) {
+                cout << "ERRO: Atributo ambiguo " << T << " pertence a ";
+                cout << relacao_A << " e " << relacao_B << endl;
+                delete A;
+                delete B;
+                return false;
+            } else if (da >= 0) {
+                T = testaA;
+            } else {
+                T = testaB;
+            }
+            selecao = "S(" + atual + "," + T + "," + op + "," + v + "," + atual + "SELECT)";
+            atual += "SELECT";
+        }
+        
+    }
+    stringstream ss;
+    ss << "P(" << atual << "," << atributos.size() << ",";
+    for (int i = 0; i < atributos.size(); i++) {
+        ss << atributos[i] << ",";
+    }
+    ss << atual + "PROJ)"; 
+    projecao = ss.str();
+    ofstream alg ((nome_arq + ".alg").c_str());
+    if (juncao.size()) alg << juncao << endl;
+    if (selecao.size()) alg << selecao << endl;
+    if (projecao.size()) alg << projecao << endl;
+    alg.close();
+    delete A;
+    delete B;
+    return true;
+}
+
+bool processa_sql(istream &in, string nome_arq) {
     string comando;
     in >> comando;
-    if (comando == "CREATE") {
-        return processa_create_table(in);
-    } else if (comando == "INSERT") {
-        return processa_insert(in);
-    } else if (comando == "SELECT") {
-        return processa_select(in);
+    if (lower(comando) == "create") {
+        return processa_create_table(in, nome_arq);
+    } else if (lower(comando) == "insert") {
+        return processa_insert(in, nome_arq);
+    } else if (lower(comando) == "select") {
+        if (processa_select(in, nome_arq)) {
+            ler_arquivo_alg(nome_arq);
+            return true;
+        }
+        return false;
     }
 }
 
 
 int main(int argc, char** argv) {
+    /*
     Valor inteiro("-5",'I');
     Valor texto("'oie'", 'C');
     Valor Nulo("NULO", 'I');
@@ -377,10 +757,19 @@ int main(int argc, char** argv) {
     Z->imprime_ctl(cout);
     delete Z;
     ler_arquivo_alg("consulta1");
-    
-    ifstream arquivo_sql("comando.sql");
+    */
+    string arquivo;
+    if (argc > 1) {
+        arquivo = argv[1];
+        if (arquivo[arquivo.size() - 4] == '.') {
+            arquivo = arquivo.substr(0, arquivo.size() - 4);
+        }
+    } else {
+        arquivo = "comando";
+    }
+    ifstream arquivo_sql((arquivo + ".sql").c_str());
     if(arquivo_sql.is_open()){
-        processa_sql(arquivo_sql);
+        processa_sql(arquivo_sql, arquivo);
         arquivo_sql.close();
     }
     return (EXIT_SUCCESS);

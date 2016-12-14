@@ -165,6 +165,7 @@ struct Atributo{
     int ord;//está ordenado
     int chave;//é chave
     Atributo(std::string texto);
+    Atributo(std::string n, std::string tp);
     Atributo(const Atributo &atri);
     ~Atributo();
     friend std::ostream& operator<<(std::ostream& os, const Atributo& atrib);
@@ -186,7 +187,7 @@ struct Tabela{
 
 void ler_linha(std::istream &in, std::string &linha);
 
-void separar_operandos(std::string linha, std::vector<std::string> &operandos);
+void separar_operandos(std::string linha, std::vector<std::string> &operandos, char delim=',');
 
 #endif /* ESTRUTURAS_H */
 

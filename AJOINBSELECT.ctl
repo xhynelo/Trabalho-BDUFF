@@ -1,4 +1,4 @@
-8,6
+8,4
 AA,I,nn
 ABX,I
 ACYZ,C,nn
